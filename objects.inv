@@ -1,0 +1,21 @@
+# Sphinx inventory version 1
+# Project: Neuron3D
+# Version: 0.5
+neuron3d.Network class Classes/Network.html
+neuron3d.Nucleus class Classes/Nucleus.html
+neuron3d.Cell.display method Classes/Cell.html
+neuron3d.Nucleus.create_pts_tris_from_file method Classes/Nucleus.html
+neuron3d.Electrode class Classes/Electrode.html
+neuron3d.Cell.calculate_voltage method Classes/Cell.html
+neuron3d.Network.plot_points method Classes/Network.html
+neuron3d.Cell class Classes/Cell.html
+functions.find_neuron_branches function Functions/Find New Point.html
+neuron3d.Nucleus.display method Classes/Nucleus.html
+neuron3d.Cell.play method Classes/Cell.html
+neuron3d.DBS.display method Classes/DBS.html
+neuron3d.Network.read_file_to_vector method Classes/Network.html
+neuron3d.Network.display method Classes/Network.html
+functions.retreive_coordinates function Functions/Retreive Coordinates.html
+neuron3d.All class Classes/All.html
+neuron3d.Electrode.display method Classes/Electrode.html
+neuron3d.DBS class Classes/DBS.html

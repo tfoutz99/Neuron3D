@@ -1,0 +1,4 @@
+Electrode
+============
+.. autoclass:: neuron3d.Electrode
+   :members:

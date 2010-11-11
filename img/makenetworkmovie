@@ -1,0 +1,2 @@
+#!/bin/bash
+ffmpeg -f image2 -r 10 -i network_%03d.png -sameq network.mov -pass 2

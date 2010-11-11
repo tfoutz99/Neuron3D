@@ -1,0 +1,8 @@
+*.png
+*.pyc
+*.o
+*.c
+*.a
+*.wpr
+i386
+*.DS_Store

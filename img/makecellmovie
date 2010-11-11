@@ -1,0 +1,5 @@
+#!/bin/bash
+PREFIX=$1_%03d.png
+MOVIENAME=$2
+echo $PREFIX
+ffmpeg -f image2 -r 50 -i $PREFIX -sameq "$MOVIENAME.mov" -pass 2

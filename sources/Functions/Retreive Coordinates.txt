@@ -1,5 +1,0 @@
-Retrieve Coordinates
-====================
-
-.. autofunction:: functions.retreive_coordinates
-

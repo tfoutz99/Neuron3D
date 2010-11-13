@@ -17,7 +17,19 @@ Contents:
     
     Classes    
     Functions
+
+How-to
+======
+
+To run all files, install the Enthought Python Distribution,
+compile neuron with the -nrnpython flag, install Neuron3D, 
+and from the Neuron3D directory, run:
+
+.. code-block:: bash
+
+    ipython -wthread main.py
     
+
 Indices and tables
 ==================
 

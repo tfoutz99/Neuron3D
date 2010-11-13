@@ -1,4 +1,0 @@
-Network
-============
-.. autoclass:: neuron3d.Network
-   :members:

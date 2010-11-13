@@ -1,4 +1,0 @@
-Find Neuron Branches
-====================
-
-.. autofunction:: functions.retreive_coordinates

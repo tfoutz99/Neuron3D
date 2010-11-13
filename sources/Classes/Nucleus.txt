@@ -1,5 +1,0 @@
-Nucleus
-============
-   
-.. autoclass:: neuron3d.Nucleus
-   :members:

@@ -1,4 +1,0 @@
-DBS
-============
-.. autoclass:: neuron3d.DBS
-   :members:

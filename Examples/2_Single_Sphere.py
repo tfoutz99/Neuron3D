@@ -18,6 +18,7 @@ z = [0]
 
 # Mayavi's points3d function
 pts = points3d(x, y, z,
-               color=(0.3, 1.0, 0.3))
-pts.glyph.glyph_source.glyph_source.theta_resolution = 50
-pts.glyph.glyph_source.glyph_source.phi_resolution = 50
+               color=(0.3, 1.0, 0.3),
+               name='sphere')
+#pts.glyph.glyph_source.glyph_source.theta_resolution = 50
+#pts.glyph.glyph_source.glyph_source.phi_resolution = 50

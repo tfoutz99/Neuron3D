@@ -6,13 +6,12 @@ def example(choice=1):
     print "-"*80
     filenames = {1:"Examples/1_Spherical_Harmonics.py",
                  2:"Examples/2_Single_Sphere.py",
-                 3:"Examples/3_Multiple_Spheres.py",
-                 4:"Examples/4_Electrode.py",
-                 5:"Examples/5_DBS_Electrode.py",
-                 6:"Examples/6_Nuclei.py",
-                 7:"Examples/7_Subthalamic_Neuron.py",
-                 8:"Examples/8_All_Together.py",
-                 9:"Examples/9_Network.py"}
+                 3:"Examples/3_Electrode.py",
+                 4:"Examples/4_DBS_Electrode.py",
+                 5:"Examples/5_Nuclei.py",
+                 6:"Examples/6_Subthalamic_Neuron.py",
+                 7:"Examples/7_All_Together.py",
+                 8:"Examples/8_Network.py"}
     try:
         print """Executing: %s""" % (filenames[choice])
     except KeyError:
@@ -33,17 +32,16 @@ def interactive(choice=0):
     print "-"*80
     print "# Type Selection.  For help type h."
     print "\ndemo>",
-    info = """ 
+    info = """
 Select an example:
     1 - Spherical harmonics
     2 - Single sphere
-    3 - Multiple spheres
-    4 - Simple electrode
-    5 - DBS electrode
-    6 - Subthalamic NUCLEUS
-    7 - Subthalamic NEURON
-    8 - DBS + STN + STh Neuron
-    9 - Network model
+    3 - Simple electrode
+    4 - DBS electrode
+    5 - Subthalamic NUCLEUS
+    6 - Subthalamic NEURON
+    7 - DBS + STN + STh Neuron
+    8 - Network model
     b - Run previous
     h - Print this help
     x - Exit interactive Prompt
@@ -68,11 +66,11 @@ Select an example:
         else:
             print "Did not understand input"
             return choice
-    if 1 <= choice <= 9:
+    if 1 <= choice <= 8:
         example(choice)
         return choice+1
     else:
-        if choice == 10:
+        if choice == 9:
             print "Simulations complete!"
             return -1
         else:
@@ -91,4 +89,4 @@ if __name__=='__main__':
     while choice >= 0:
         choice = interactive(choice)
     if choice == -2:
-        __IPYTHON__.magic_Exit()    
+        __IPYTHON__.magic_Exit()

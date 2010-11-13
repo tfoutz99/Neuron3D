@@ -1,4 +1,4 @@
-#!/bin/env ipython -wthread
+#!/usr/bin/env ipython -wthread
 from enthought.mayavi import mlab
 from neuron import h, gui
 

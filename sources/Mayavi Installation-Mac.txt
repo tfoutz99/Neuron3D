@@ -1,0 +1,44 @@
+Mayavi Installation on Mac
+==========================
+
+Enthought
+---------
+
+Download Academic version for free at http://www.enthought.com/products/edudownload.php
+
+
+Neuron
+------
+Neuron must be installed from source in order to import neuron as a python module in enthought. This has been tested on Mac OS X *Snow Leopard*.
+
+.. code-block:: bash
+
+	mkdir /nrn
+	cd /nrn
+	hg clone http://www.neuron.yale.edu/hg/neuron/iv
+	hg clone http://www.neuron.yale.edu/hg/neuron/nrn
+	cd /nrn/iv
+	./build.sh
+	./configure --prefix=/nrn CFLAGS='-arch i386' CXXFLAGS='-arch i386'
+	make
+	make install
+	make clean
+	cd /nrn/nrn
+	./build.sh
+	./configure --prefix=/nrn --with-iv=/nrn PYLIBLINK='-framework Python' PYLIB='-framework Python' CFLAGS='-arch i386' CXXFLAGS='-arch i386' --with-nrnpython PYLIBLINK='-framework Python' PYLIB='-framework Python'
+	make
+	make install
+	make clean
+	cd /nrn/nrn/src/nrnpython
+	python setup.py install
+
+Test
+----
+
+Test NEURON in a new python session
+
+.. code-block:: python
+
+	>>> from neuron import h, gui
+	>>> soma = h.Section()
+	>>> h.run()

@@ -5,7 +5,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     
-    <title><no title> &mdash; Neuron3D v0.5.1 documentation</title>
+    <title>Mayavi Installation on Mac &mdash; Neuron3D v0.5.1 documentation</title>
     <link rel="stylesheet" href="static/sphinxdoc.css" type="text/css" />
     <link rel="stylesheet" href="static/pygments.css" type="text/css" />
     <script type="text/javascript">
@@ -21,7 +21,7 @@
     <script type="text/javascript" src="static/doctools.js"></script>
     <link rel="top" title="Neuron3D v0.5.1 documentation" href="index.html" />
     <link rel="next" title="Classes" href="Classes.html" />
-    <link rel="prev" title="<no title>" href="Tutorial Examples.html" /> 
+    <link rel="prev" title="Tutorial Examples" href="Tutorial Examples.html" /> 
   </head>
   <body>
     <div class="related">
@@ -34,16 +34,26 @@
           <a href="Classes.html" title="Classes"
              accesskey="N">next</a> |</li>
         <li class="right" >
-          <a href="Tutorial Examples.html" title="<no title>"
+          <a href="Tutorial Examples.html" title="Tutorial Examples"
              accesskey="P">previous</a> |</li>
         <li><a href="index.html">Neuron3D v0.5.1 documentation</a> &raquo;</li> 
       </ul>
     </div>
       <div class="sphinxsidebar">
         <div class="sphinxsidebarwrapper">
+            <h3><a href="index.html">Table Of Contents</a></h3>
+            <ul>
+<li><a class="reference external" href="#">Mayavi Installation on Mac</a><ul>
+<li><a class="reference external" href="#enthought">Enthought</a></li>
+<li><a class="reference external" href="#neuron">Neuron</a></li>
+<li><a class="reference external" href="#test">Test</a></li>
+</ul>
+</li>
+</ul>
+
             <h4>Previous topic</h4>
             <p class="topless"><a href="Tutorial Examples.html"
-                                  title="previous chapter">&lt;no title&gt;</a></p>
+                                  title="previous chapter">Tutorial Examples</a></p>
             <h4>Next topic</h4>
             <p class="topless"><a href="Classes.html"
                                   title="next chapter">Classes</a></p>
@@ -73,7 +83,47 @@
         <div class="bodywrapper">
           <div class="body">
             
-  
+  <div class="section" id="mayavi-installation-on-mac">
+<h1>Mayavi Installation on Mac<a class="headerlink" href="#mayavi-installation-on-mac" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="enthought">
+<h2>Enthought<a class="headerlink" href="#enthought" title="Permalink to this headline">¶</a></h2>
+<p>Download Academic version for free at <a class="reference external" href="http://www.enthought.com/products/edudownload.php">http://www.enthought.com/products/edudownload.php</a></p>
+</div>
+<div class="section" id="neuron">
+<h2>Neuron<a class="headerlink" href="#neuron" title="Permalink to this headline">¶</a></h2>
+<p>Neuron must be installed from source in order to import neuron as a python module in enthought. This has been tested on Mac OS X <em>Snow Leopard</em>.</p>
+<div class="highlight-bash"><div class="highlight"><pre>mkdir /nrn
+<span class="nb">cd</span> /nrn
+hg clone http://www.neuron.yale.edu/hg/neuron/iv
+hg clone http://www.neuron.yale.edu/hg/neuron/nrn
+<span class="nb">cd</span> /nrn/iv
+./build.sh
+./configure --prefix<span class="o">=</span>/nrn <span class="nv">CFLAGS</span><span class="o">=</span><span class="s1">&#39;-arch i386&#39;</span> <span class="nv">CXXFLAGS</span><span class="o">=</span><span class="s1">&#39;-arch i386&#39;</span>
+make
+make install
+make clean
+<span class="nb">cd</span> /nrn/nrn
+./build.sh
+./configure --prefix<span class="o">=</span>/nrn --with-iv<span class="o">=</span>/nrn <span class="nv">PYLIBLINK</span><span class="o">=</span><span class="s1">&#39;-framework Python&#39;</span> <span class="nv">PYLIB</span><span class="o">=</span><span class="s1">&#39;-framework Python&#39;</span> <span class="nv">CFLAGS</span><span class="o">=</span><span class="s1">&#39;-arch i386&#39;</span> <span class="nv">CXXFLAGS</span><span class="o">=</span><span class="s1">&#39;-arch i386&#39;</span> --with-nrnpython <span class="nv">PYLIBLINK</span><span class="o">=</span><span class="s1">&#39;-framework Python&#39;</span> <span class="nv">PYLIB</span><span class="o">=</span><span class="s1">&#39;-framework Python&#39;</span>
+make
+make install
+make clean
+<span class="nb">cd</span> /nrn/nrn/src/nrnpython
+python setup.py install
+</pre></div>
+</div>
+</div>
+<div class="section" id="test">
+<h2>Test<a class="headerlink" href="#test" title="Permalink to this headline">¶</a></h2>
+<p>Test NEURON in a new python session</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">neuron</span> <span class="kn">import</span> <span class="n">h</span><span class="p">,</span> <span class="n">gui</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">soma</span> <span class="o">=</span> <span class="n">h</span><span class="o">.</span><span class="n">Section</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">h</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+</div>
+
 
           </div>
         </div>
@@ -90,7 +140,7 @@
           <a href="Classes.html" title="Classes"
              >next</a> |</li>
         <li class="right" >
-          <a href="Tutorial Examples.html" title="<no title>"
+          <a href="Tutorial Examples.html" title="Tutorial Examples"
              >previous</a> |</li>
         <li><a href="index.html">Neuron3D v0.5.1 documentation</a> &raquo;</li> 
       </ul>

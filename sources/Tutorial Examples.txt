@@ -1,0 +1,6 @@
+Tutorial Examples
+=================
+
+Example 1: Harmonic oscillator
+------------------------------
+To demonstrate the potential of Mayavi.  Play around with the GUI, get to know the pipeline.

@@ -10,16 +10,29 @@ frames can be saved to make movies. Presented at SfN 2010
 
 ## Setup
 
-Requires Python 3.10+ and a C compiler for NEURON's mechanisms (on macOS,
-the Xcode Command Line Tools).
+Installing with [uv](https://docs.astral.sh/uv/) is recommended: it sets up
+the right Python version and the exact library versions this was tested
+with (from `uv.lock`). You also need a C compiler for NEURON's mechanisms
+(on macOS, the Xcode Command Line Tools: `xcode-select --install`).
 
 ```sh
-uv sync                  # or: pip install neuron mayavi PyQt5 numpy
+curl -LsSf https://astral.sh/uv/install.sh | sh   # install uv (or: brew install uv)
+git clone https://github.com/tfoutz99/Neuron3D.git
+cd Neuron3D
+uv sync                  # create .venv with Python 3.12 and the dependencies
 uv run nrnivmodl mod     # compile the ion channel mechanisms (creates arm64/ or x86_64/)
 ```
 
+Without uv, use Python 3.10+ in a virtual environment, then run the
+commands below without the `uv run` prefix:
+
+```sh
+pip install neuron mayavi PyQt5 numpy
+nrnivmodl mod
+```
+
 If `nrnivmodl` fails with *unable to locate the Python shared library*
-(seen with uv-managed Pythons), point it at libpython and rerun:
+(expected when uv installed Python itself), point it at libpython and rerun:
 
 ```sh
 export NMODL_PYLIB=$(uv run python -c "import sys, sysconfig; print(sys.base_prefix + '/lib/' + sysconfig.get_config_var('LDLIBRARY'))")

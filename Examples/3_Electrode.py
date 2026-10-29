@@ -1,5 +1,4 @@
-#!/usr/bin/env ipython -wthread
-from enthought.mayavi.mlab import *
+from mayavi.mlab import *
 from neuron3d import *
 
 #===============================================================================
@@ -13,3 +12,5 @@ fig = figure(bgcolor=(0.1, 0.1, 0.1))
 ##==============================================================================
 electrode = Electrode()
 electrode.display()
+
+show()

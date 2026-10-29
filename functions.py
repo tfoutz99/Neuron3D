@@ -14,7 +14,7 @@ def find_neuron_branches():
     from numpy import array
     from neuron import h
     def cas_index():
-        for ii in xrange(len(h.s)):
+        for ii in range(len(h.s)):
             if h.s[ii].is_cas():
                 return ii
         return -1
@@ -25,7 +25,7 @@ def find_neuron_branches():
 
     branches = []
     def recurse_compartments(index, branches):
-        for ii in xrange(int(h.s[index].nchild())):
+        for ii in range(int(h.s[index].nchild())):
             h.s[index].child[ii].push()
             child_index = cas_index()
             #print index,',',child_index
@@ -42,6 +42,6 @@ def find_new_point(origPoint, direction, distance):
     newPoint = [0, 0, 0]
     distance0 = sqrt((direction[0]) ** 2 + (direction[1]) ** 2 + (direction[2]) ** 2)
     distanceRatio = distance / distance0
-    for ii in xrange(3):
+    for ii in range(3):
         newPoint[ii] = origPoint[ii] + (direction[ii]) * distanceRatio
     return newPoint

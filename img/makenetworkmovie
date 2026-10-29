@@ -1,2 +1,4 @@
 #!/bin/bash
-ffmpeg -f image2 -r 10 -i network_%03d.png -sameq network.mov -pass 2
+# Usage (from img/): ./makenetworkmovie   -> network.mov from Network_000.png, ...
+ffmpeg -framerate 10 -i Network_%03d.png -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" \
+       -c:v libx264 -pix_fmt yuv420p -crf 18 network.mov

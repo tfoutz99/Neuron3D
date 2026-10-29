@@ -1,5 +1,7 @@
 #!/bin/bash
+# Usage (from img/): ./makecellmovie cell cell   -> cell.mov from cell_000.png, cell_001.png, ...
 PREFIX=$1_%03d.png
 MOVIENAME=$2
 echo $PREFIX
-ffmpeg -f image2 -r 50 -i $PREFIX -sameq "$MOVIENAME.mov" -pass 2
+ffmpeg -framerate 50 -i "$PREFIX" -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2" \
+       -c:v libx264 -pix_fmt yuv420p -crf 18 "$MOVIENAME.mov"

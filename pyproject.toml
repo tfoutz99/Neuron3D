@@ -1,0 +1,23 @@
+[project]
+name = "neuron3d"
+version = "0.6.0"
+description = "3D visualization of NEURON models, DBS electrodes, and brain nuclei with Mayavi"
+readme = "README.md"
+authors = [{ name = "Tom Foutz" }]
+requires-python = ">=3.10"
+dependencies = [
+    "mayavi>=4.8",
+    "neuron>=9.0",
+    "numpy",
+    "PyQt5",
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

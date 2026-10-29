@@ -1,5 +1,4 @@
-#!/usr/bin/env ipython -wthread
-from enthought.mayavi.mlab import *
+from mayavi.mlab import *
 from neuron3d import *
 
 #===============================================================================
@@ -16,3 +15,5 @@ dbs.display()
 #dbs.<tab>
 #dbs??
 dbs.edit_traits()
+
+show()

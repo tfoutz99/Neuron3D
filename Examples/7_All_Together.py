@@ -1,5 +1,4 @@
-#!/usr/bin/env ipython -wthread
-from enthought.mayavi.mlab import *
+from mayavi.mlab import *
 from neuron import h as nrn
 from neuron import gui
 from neuron3d import *
@@ -10,3 +9,5 @@ from neuron3d import *
 all_together = All()
 all_together.dbs.edit_traits()
 all_together.edit_traits()
+
+show()

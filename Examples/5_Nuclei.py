@@ -1,5 +1,4 @@
-#!/usr/bin/env ipython -wthread
-from enthought.mayavi.mlab import *
+from mayavi.mlab import *
 from neuron3d import *
 
 #===============================================================================
@@ -12,7 +11,7 @@ fig = mlab.figure(bgcolor = (0.1, 0.1, 0.1))
 ##==============================================================================
 gpi = Nucleus(ptsFile='data/gpi.pts',trisFile='data/gpi.tri',
               color=(0.7, 0.4, 0.4),
-              name='Globus Pallidus Pars Externa')
+              name='Globus Pallidus Pars Interna')
 gpi.display()
 
 stn = Nucleus(ptsFile='data/stn.pts',trisFile='data/stn.tri',
@@ -20,3 +19,4 @@ stn = Nucleus(ptsFile='data/stn.pts',trisFile='data/stn.tri',
               name='Subthalamic Nucleus')
 stn.display()
 
+show()

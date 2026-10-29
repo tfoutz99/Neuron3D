@@ -1,23 +1,38 @@
-""".. automodule:: mods.set.tests
-    :members:
-    :show-inheritance:"""
+""" Display NEURON models, DBS electrodes, and anatomical nuclei in 3D with Mayavi """
+from pathlib import Path
+
 import numpy
+import neuron
 from neuron import h as nrn
-from neuron import gui
-from enthought.mayavi import mlab
-from enthought.mayavi.mlab import pipeline
-from numpy import array, vstack
-from itertools import izip
-from pylab import array, ones, sort, sqrt, dot
+from mayavi import mlab
+from mayavi.mlab import pipeline
+from numpy import array, vstack, sqrt, dot
 from functions import *
-from enthought.traits.api import Str, Float, HasTraits, Button, Bool
-from enthought.traits.ui.api import View, Item
+from traits.api import Float, HasTraits, Button, Bool
+from traitsui.api import View, Item
+
+MODULE_DIR = Path(__file__).resolve().parent
+DATA_DIR = MODULE_DIR / 'data'
+IMG_DIR = MODULE_DIR / 'img'
+
+nrn.load_file('stdrun.hoc')
+
+def load_model(hoc_file=MODULE_DIR / 'stn.hoc'):
+    """ Load the compiled mechanisms in mod/ (if needed) and a hoc model """
+    # NEURON loads mechanisms compiled in the working directory at import;
+    # trainIClamp is defined in mod/train.mod
+    if not hasattr(nrn, 'trainIClamp'):
+        if not neuron.load_mechanisms(str(MODULE_DIR)):
+            raise RuntimeError("Compiled mechanisms not found. "
+                               "Run 'nrnivmodl mod' in %s" % MODULE_DIR)
+    nrn.load_file(str(hoc_file))
 
 #----------------------------------------------------------------------
 class Electrode(HasTraits):
     """ Create an intracellular electrode
     """
     def __init__(self):
+        super().__init__()
         # Electrode tip
         #self.sphere_center = [0, 0, 0]
         self.sphere_center = array([-7.34,
@@ -65,7 +80,7 @@ class DBS(Electrode):
     contact0 = Float(1, desc="Contact 0 Voltage")
     contact1 = Float(-0.5, desc="Contact 1 Voltage")
     contact2  = Float(0, desc="Contact 2 Voltage")
-    contact3  = Float(-1, desc="Contact 2 Voltage")
+    contact3  = Float(-1, desc="Contact 3 Voltage")
     view = View( Item("contact0"),
                  Item("contact1"),
                  Item("contact2"),
@@ -76,12 +91,11 @@ class DBS(Electrode):
         """ Creates a DBS electrode with 4 contacts """
 
         # Call Super Class
-        Electrode.__init__(self)
+        super().__init__()
 
         # Create Contacts in DBS electrode
-        #self.active_contacts = [0, 1, 0, -1]
-        self.set_contacts = [0, 1, 0, 1]
         self.contact_height = 1000.0
+        self.mlab_contacts = None
 
     def display(self):
         """ Display Electrode in Mayavi """
@@ -100,9 +114,9 @@ class DBS(Electrode):
 
         contactCenters = array([c0, c1, c2, c3])
         contact = []
-        for ii in xrange(4):
+        for ii in range(4):
             topContact = find_new_point(contactCenters[ii,:], self.direction, self.contact_height / 2)
-            bottomContact = find_new_point(contactCenters[ii,:], [-1 * ii for ii in self.direction], self.contact_height / 2)
+            bottomContact = find_new_point(contactCenters[ii,:], -self.direction, self.contact_height / 2)
             contact.append([bottomContact, topContact])
 
         contact_array = array(contact)
@@ -131,25 +145,20 @@ class DBS(Electrode):
         surface.module_manager.scalar_lut_manager.data_range = array([-1., 1.])
 
     def _contact0_changed(self, value):
-        try:
-            self.mlab_contacts.mlab_source.scalars[0:2]=value
-            self.mlab_contacts.mlab_source.update()
-        except: pass
+        self.set_contact(0, value)
     def _contact1_changed(self, value):
-        try:
-            self.mlab_contacts.mlab_source.scalars[2:4]=value
-            self.mlab_contacts.mlab_source.update()
-        except: pass
+        self.set_contact(1, value)
     def _contact2_changed(self, value):
-        try:
-            self.mlab_contacts.mlab_source.scalars[4:6]=value
-            self.mlab_contacts.mlab_source.update()
-        except: pass
+        self.set_contact(2, value)
     def _contact3_changed(self, value):
-        try:
-            self.mlab_contacts.mlab_source.scalars[6:8]=value
-            self.mlab_contacts.mlab_source.update()
-        except: pass
+        self.set_contact(3, value)
+
+    def set_contact(self, index, value):
+        """ Recolor a contact once the electrode is displayed """
+        if self.mlab_contacts is None:
+            return
+        self.mlab_contacts.mlab_source.scalars[2*index:2*index+2] = value
+        self.mlab_contacts.mlab_source.update()
 
 #----------------------------------------------------------------------
 class Cell(HasTraits):
@@ -172,7 +181,8 @@ class Cell(HasTraits):
                 Item(name = 'save_img'),
                 Item(name = 'run_mayavi'))
     def _display_NEURON_fired(self):
-        nrn.xopen("ses.ses")
+        from neuron import gui
+        nrn.xopen(str(MODULE_DIR / 'ses.ses'))
     def _display_MayaVi_fired(self):
         self.display()
     def _run_NEURON_fired(self):
@@ -181,122 +191,67 @@ class Cell(HasTraits):
         self.play()
 
     def __init__(self, name='Cell', var='v'):
-        # Create 1 soma section and 10 Axon sections
+        super().__init__()
         self.var = var
         self.name = name
-        self.build_tree()
+        self.offset = array([0., 0., 0.])
+        self.mlab_pts = None
         self.mlab_cell = None
+        self.build_tree()
 
     def root_section(self):
-        sref = nrn.SectionRef()
-        sref.root.push()
-        cas = nrn.cas()
-        nrn.pop_section()
-        return cas
+        return nrn.SectionRef().root
+
+    def sections(self):
+        """ Sections of the tree, each parent before its children """
+        def walk(sec):
+            yield sec
+            for child in nrn.SectionRef(sec=sec).child:
+                yield from walk(child)
+        return walk(self.root_section())
 
     def calculate_voltage(self):
         """ Calculate the voltage at this time """
-
-        def append_v(sec, v):
-            """ Append data to v """
-            sec.push()
-            for ii in xrange(1, int(nrn.n3d())):
-                v.append(sec.v)
-            nrn.pop_section()
-
-            return v
-
-        def append_children_voltage(parent, v):
-            parent.push()
-            sref = nrn.SectionRef()
-            nrn.pop_section()
-            if sref.child:
-                for child in sref.child:
-                    v = append_v(child, v)
-                    v = append_children_voltage(parent = child,
-                                                v = v)
-            return v
-        root_section = self.root_section()
-
-        # From Tom
-        #seclist = root_section.wholetree()
-        #for sec in seclist:
-        #    for ii in nrn.n3d():
-        #        x = nrn.x3d(ii)...
-
-        v = [root_section.v]
-        v = append_v(root_section, v)
-        v = append_children_voltage(root_section, v)
-        v = array(v)
+        v = array([sec.v for sec in self.point_sections])
         self.xyzdv[:,4] = v
         return v
 
     def build_tree(self):
-        print "-"*100
-        def append_data(sec, xyzdv, parent_id, connections):
-            """ Append data to xyzdv """
+        """ Find [x, y, z, diam, v] at each 3d point and the edges between them """
+        if self.var != 'v':
+            raise AttributeError('Variable %s not implemented' % self.var)
 
-            if self.var is 'v':
-                v = sec.v
+        xyzdv = []
+        connections = []
+        self.point_sections = []  # section that each point belongs to
+        point_ids = {}            # section -> xyzdv index of each of its 3d points
+        for sec in self.sections():
+            parent_seg = sec.parentseg()
+            if parent_seg is None:
+                xyzdv.append([sec.x3d(0), sec.y3d(0), sec.z3d(0), sec.diam3d(0), sec.v])
+                self.point_sections.append(sec)
+                ids = [0]
             else:
-                raise AttributeError('Variable %s not implemented' % self.var)
-
-
-            sec.push()
-            for ii in xrange(1, int(nrn.n3d())):
-                x = nrn.x3d(ii)
-                y = nrn.y3d(ii)
-                z = nrn.z3d(ii)
-                d = nrn.diam3d(ii)
-                xyzdv.append([x,y,z,d,v])
-                child_id = len(xyzdv)-1
-                if len(xyzdv)>1:
-                    connections.append([child_id, parent_id])
-                parent_id = child_id
-            nrn.pop_section()
-
-            return xyzdv, connections
-
-        def append_children_data(parent, parent_id, xyzdv, connections):
-            parent.push()
-            sref = nrn.SectionRef()
-            nrn.pop_section()
-            if sref.child:
-                for child in sref.child:
-                    xyzdv, connections = append_data(child, xyzdv, parent_id, connections)
-                    xyzdv, connections = append_children_data(parent = child,
-                                                              parent_id = len(xyzdv)-1,
-                                                              xyzdv = xyzdv,
-                                                              connections = connections)
-            return xyzdv, connections
-
-        # Find data and connections
-        root_section = self.root_section()
-        root_section.push()
-        xyzdv = [[nrn.x3d(0),
-                 nrn.y3d(0),
-                 nrn.z3d(0),
-                 nrn.diam3d(0),
-                 root_section.v]]
-        nrn.pop_section()
-        xyzdv, connections = append_data(root_section, xyzdv, 0, [])
-        xyzdv, connections = append_children_data(root_section,
-                                                  len(xyzdv)-1,
-                                                  xyzdv,
-                                                  connections)
+                # A child's first 3d point is where it attaches to its parent
+                parent = parent_seg.sec
+                arc = array([parent.arc3d(ii) for ii in range(int(parent.n3d()))])
+                ids = [point_ids[parent][numpy.abs(arc - parent_seg.x * parent.L).argmin()]]
+            for ii in range(1, int(sec.n3d())):
+                xyzdv.append([sec.x3d(ii), sec.y3d(ii), sec.z3d(ii), sec.diam3d(ii), sec.v])
+                self.point_sections.append(sec)
+                ids.append(len(xyzdv)-1)
+                connections.append([ids[-1], ids[-2]])
+            point_ids[sec] = ids
         self.xyzdv = array(xyzdv)
         self.connections = array(connections)
 
     def display(self, var='v', scaling=1):
         ''' Display current cell in mayavi'''
-        from neuron import h
-        from numpy import array, vstack
-        from enthought.mayavi import mlab
-        from enthought.mayavi.mlab import pipeline
-        try:
-            self.mlab_cell.parent.parent.parent.parent.parent.parent.remove()
-        except:
-            pass
+        if self.mlab_pts is not None:
+            try:
+                self.mlab_pts.remove()
+            except Exception:
+                pass  # the figure was closed
         f = mlab.figure(figure=mlab.gcf(),
                         bgcolor=(0,0,0),
                         size=(800,600))
@@ -309,16 +264,12 @@ class Cell(HasTraits):
 
         self.var = var
         self.build_tree()
-        xs = self.xyzdv[:,0]
-        ys = self.xyzdv[:,1]
-        zs = self.xyzdv[:,2]
+        xs = self.xyzdv[:,0] + self.offset[0]
+        ys = self.xyzdv[:,1] + self.offset[1]
+        zs = self.xyzdv[:,2] + self.offset[2]
         diams = self.xyzdv[:,3] * scaling # larger scaling makes neurons more visible
         data = self.xyzdv[:,4]
         edges = self.connections
-
-        # Display in mayavi
-        #Create Scalar scatter with diameter data and edges
-        #pts = pipeline.scalar_scatter(xs, ys, zs, diams)
 
         # Display in mayavi
         pts = pipeline.scalar_scatter(xs, ys, zs, diams/2.0,
@@ -345,58 +296,57 @@ class Cell(HasTraits):
         src2 = pipeline.set_active_attribute(tube, point_scalars='data')
 
         lines = pipeline.surface(src2)
+        self.mlab_pts = pts
         self.mlab_cell = lines
 
-        if self.var is 'v':
+        if self.var == 'v':
             self.mlab_cell.module_manager.scalar_lut_manager.use_default_range=False
             self.mlab_cell.module_manager.scalar_lut_manager.data_range = array([-70, 0])
+        # Look at the root section (soma) from far enough to see the dendrites
         mlab.view(azimuth = 133.48567814586244,
                   elevation = 72.824281412546014,
-                  distance = 409.81131636077509,
-                  focalpoint = array([-4502.1515611 ,  5031.21983918, -2293.53156414]))
+                  distance = 2500,
+                  focalpoint = self.xyzdv[0,:3] + self.offset)
 
 
     def move(self, xyz):
-        if self.mlab_cell:
-            self.mlab_cell.mlab_source.x = self.mlab_cell.mlab_source.x + xyz[0]
-            self.mlab_cell.mlab_source.y = self.mlab_cell.mlab_source.y + xyz[1]
-            self.mlab_cell.mlab_source.z = self.mlab_cell.mlab_source.z + xyz[2]
-        else:
-            print "You must first run Cell.display()"
+        """ Place the cell at an offset of xyz from its hoc coordinates """
+        delta = array(xyz, dtype=float) - self.offset
+        self.offset = self.offset + delta
+        if self.mlab_cell is not None:
+            source = self.mlab_cell.mlab_source
+            source.x = source.x + delta[0]
+            source.y = source.y + delta[1]
+            source.z = source.z + delta[2]
 
 
     def retrieve_coordinates(self, sec):
-        xyzds = []
-        sec.push()
-        for ii in xrange(int(nrn.n3d())):
-            xyzds.append([nrn.x3d(ii),
-                         nrn.y3d(ii),
-                         nrn.z3d(ii),
-                         nrn.diam3d(ii)])
-        nrn.pop_section()
-        return xyzds
+        return [[sec.x3d(ii), sec.y3d(ii), sec.z3d(ii), sec.diam3d(ii)]
+                for ii in range(int(sec.n3d()))]
 
-    def play(self, fileroot='cell', show_colorbar=True, show_title=False):
-        ''' Step through cell response over time '''
-        dt = self.play_dt
-        tstop = self.play_tstop
-        nrn.init()
+    def play(self, fileroot='cell', show_colorbar=True, show_title=False,
+             dt=None, tstop=None, save_img=None):
+        ''' Step through cell response over time
+
+        dt, tstop, and save_img default to the play_dt, play_tstop, and
+        save_img traits. '''
+        dt = self.play_dt if dt is None else dt
+        tstop = self.play_tstop if tstop is None else tstop
+        save_img = self.save_img if save_img is None else save_img
         nrn.cvode_active(0)
+        nrn.stdinit()
         img_counter=0
         f = mlab.gcf()
+        ftitle = None
         if show_colorbar: mlab.colorbar(self.mlab_cell)
-        nrn.initPlot()
-        nrn.init()
-        nrn.initPlot()
-        nrn.init()
-        for x in xrange(0, int(tstop/dt)):
+        for x in range(int(round(tstop/dt)) + 1):
             timestamp = "TIME: %.1f" % (x*dt)
-            print timestamp
+            print(timestamp)
             if show_title:
-                try:
-                    ftitle.text = timestamp
-                except:
+                if ftitle is None:
                     ftitle = mlab.title(timestamp)
+                else:
+                    ftitle.text = timestamp
             nrn.continuerun(x*dt)
 
             dataset = self.mlab_cell.mlab_source.dataset
@@ -408,52 +358,39 @@ class Cell(HasTraits):
             self.mlab_cell.update_data()
             self.mlab_cell.update_pipeline()
 
-            if self.save_img:
-                f.scene.save_png('img/%s_%03d.png' % (fileroot, img_counter))
+            if save_img:
+                f.scene.save_png(str(IMG_DIR / ('%s_%03d.png' % (fileroot, img_counter))))
 
             img_counter += 1
 
 #----------------------------------------------------------------------
-class Nucleus():
+class Nucleus:
     def __init__(self, ptsFile=None, trisFile=None, color=(0.3, 0.3, 0.3), name=''):
         """ An anatomical nucleus """
         self.pts = None
         self.tris = None
+        self.mlab_mesh = None
         self.color = color
         self.name = name
         self.ptsFile=ptsFile
         self.trisFile=trisFile
         if ptsFile and trisFile:
             self.create_pts_tris_from_file(ptsFile, trisFile)
-        pass
 
     def create_pts_tris_from_file(self, ptsFile, trisFile):
-        """ Load points and triangular connectsions from file """
-        from numpy import array
+        """ Load points (mm) and triangles (1-based point indices) from file """
         self.ptsFile = ptsFile
         self.trisFile = trisFile
-        lPts = []
-        f = open(ptsFile, 'r')
-        for line in f:
-            sLine = line.split()
-            lPts += [[float(sLine[0]) * 1e3, float(sLine[1]) * 1e3, float(sLine[2]) * 1e3]]
-
-        lTris = []
-        f = open(trisFile, 'r')
-        for line in f:
-            sLine = line.split()
-            lTris += [[int(sLine[0])-1, int(sLine[1])-1, int(sLine[2])-1]]
-        self.pts = array(lPts)
-        self.tris = array(lTris)
+        self.pts = numpy.loadtxt(ptsFile) * 1e3
+        self.tris = numpy.loadtxt(trisFile, dtype=int) - 1
 
     def display(self):
         """ Display Nucleus in Mayavi """
         # Create and display a triangular mesh
-        from enthought.mayavi.mlab import triangular_mesh
         f = mlab.figure(figure=mlab.gcf(),
                         bgcolor=(0,0,0),
                         size=(800,600))
-        self.mlab_mesh = triangular_mesh(self.pts[:, 0],
+        self.mlab_mesh = mlab.triangular_mesh(self.pts[:, 0],
                                          self.pts[:, 1],
                                          self.pts[:, 2],
                                          self.tris,
@@ -464,18 +401,15 @@ class Nucleus():
         #self.mlab_mesh.actor.property.backface_culling = True
         self.mlab_mesh.parent.parent.filter.splitting = False
     def set_opacity(self, opacity):
-        try:
-            self.mlab_mesh.actor.property.opacity = opacity
-            if opacity:
-                # I think tranparent meshes look better with backface culling
-                self.mlab_mesh.actor.property.backface_culling = True
-        except:
-            pass
+        if self.mlab_mesh is None:
+            return
+        self.mlab_mesh.actor.property.opacity = opacity
+        if opacity:
+            # I think transparent meshes look better with backface culling
+            self.mlab_mesh.actor.property.backface_culling = True
 
 #----------------------------------------------------------------------
 class All(HasTraits):
-    from enthought.mayavi import mlab
-
     play_dt = Float(0.5, desc="Time step for Mayavi simulations")
     play_tstop = Float(20, desc="Stopping time to update Mayavi")
 
@@ -485,7 +419,7 @@ class All(HasTraits):
     display_neuron = Button("Display STN Neuron", desc="Display Subthalamic Nucleus Projection Neuron")
     x_neuron = Float(0, desc="Soma X-coordinate")
     y_neuron = Float(0, desc="Soma Y-coordinate")
-    z_neuron = Float(0, desc="Soma Z-coordinate")
+    z_neuron = Float(-2000, desc="Soma Z-coordinate")
     diam_neuron = Float(1, desc="Relative diameter")
 
     run_NEURON = Button("Run simulation (NEURON)", desc = "Run a neuron simulation")
@@ -509,76 +443,63 @@ class All(HasTraits):
 
     def _display_dbs_fired(self):
         self.dbs.display()
-        mlab.view(azimuth=self.aximuth,
-              elevation=self.elevation,
-              distance=self.distance,
-              focalpoint=self.focalpoint,
-              reset_roll=self.reset_roll)
+        self.reset_view()
     def _display_nucleus_fired(self):
         self.nucleus.display()
         self.nucleus_opacity=0.5
-        mlab.view(azimuth=self.aximuth,
-              elevation=self.elevation,
-              distance=self.distance,
-              focalpoint=self.focalpoint,
-              reset_roll=self.reset_roll)
+        self.reset_view()
     def _nucleus_opacity_changed(self, value):
         self.nucleus.set_opacity(value)
 
     def _display_neuron_fired(self):
         self.neuron.display(scaling=self.diam_neuron)
-        self.z_neuron=-2000
-        mlab.view(azimuth=self.aximuth,
-              elevation=self.elevation,
-              distance=self.distance,
-              focalpoint=self.focalpoint,
-              reset_roll=self.reset_roll)
+        self.reset_view()
 
-    def _x_neuron_changed(self, value):
-        self.neuron.move([value,
-                          self.y_neuron,
-                          self.z_neuron])
-    def _y_neuron_changed(self, value):
-        self.neuron.move([self.x_neuron,
-                          value,
-                          self.z_neuron])
-    def _z_neuron_changed(self, value):
-        self.neuron.move([self.x_neuron,
-                          self.y_neuron,
-                          value])
+    def _x_neuron_changed(self):
+        self.move_neuron()
+    def _y_neuron_changed(self):
+        self.move_neuron()
+    def _z_neuron_changed(self):
+        self.move_neuron()
     def _diam_neuron_changed(self, value):
         self.neuron.display(scaling=value)
-        self.z_neuron=0
-        self.z_neuron=-2000
-        mlab.view(azimuth=self.aximuth,
-              elevation=self.elevation,
-              distance=self.distance,
-              focalpoint=self.focalpoint,
-              reset_roll=self.reset_roll)
+        self.reset_view()
 
     def _run_NEURON_fired(self):
         nrn.run()
 
     def _run_mayavi_fired(self):
-        self.neuron.play()
+        self.neuron.play(dt=self.play_dt,
+                         tstop=self.play_tstop,
+                         save_img=self.save_img)
 
     def __init__(self):
+        super().__init__()
         self.dbs = DBS()
-        self.nucleus = Nucleus(ptsFile='data/stn.pts',
-                               trisFile='data/stn.tri',
+        self.nucleus = Nucleus(ptsFile=DATA_DIR / 'stn.pts',
+                               trisFile=DATA_DIR / 'stn.tri',
                                name='Subthalamic Nucleus',
                                color= (0.75, 0.75, 0.75))
-        nrn.load_file("stn.hoc")
+        load_model()
         self.neuron = Cell(name='stn')
-        self.neuron.move([0, 0, -2000])
-        # edit scaling --> 5
-        # edit xyz --> 0,0,-2000
-        #cell.move([0,0,-2000])
-        self.aximuth = 36
+        self.move_neuron()
+        self.azimuth = 36
         self.elevation = 57
         self.distance = 6103
         self.focalpoint = array([-4480, 5135,  -4373])
         self.reset_roll = False
+
+    def move_neuron(self):
+        self.neuron.move([self.x_neuron,
+                          self.y_neuron,
+                          self.z_neuron])
+
+    def reset_view(self):
+        mlab.view(azimuth=self.azimuth,
+                  elevation=self.elevation,
+                  distance=self.distance,
+                  focalpoint=self.focalpoint,
+                  reset_roll=self.reset_roll)
 
 #----------------------------------------------------------------------
 class Network(HasTraits):
@@ -599,8 +520,9 @@ class Network(HasTraits):
     def _run_mayavi_fired(self):
         self.play()
     #---------------------------------------------------------------------------
-    def __init__(self, spikefile=''):
+    def __init__(self, spikefile=DATA_DIR / 'somas-large-203-10s-20pc-g3.spk'):
     #--------------------------------------------------------------
+        super().__init__()
         self.spikefile=spikefile
         self.nummit = 500
         self.numgcspermit = 20
@@ -624,29 +546,17 @@ class Network(HasTraits):
         spike.
 
         :param file_name: Name of the spike file to read.
-        :param spike_ids: If specified, a subset of ids to load. This should be an
-            sorted-ascending list.
+        :param spike_ids: If specified, a subset of ids to load.
 
-        :return: The data in a vector of tuples of the format (time, gid).
+        :return: Mitral and granule cell spikes, each an array of (time, id)
+            rows. Granule cell ids are renumbered to start from 0.
         """
-        the_file = open(file_name, 'r') # Open the file
-        data = []
-        for a_line in the_file:
-            tosplit = a_line.split()
-            idx = int(tosplit[1])
-            if spike_ids is not None:
-                # See if this idx is in the list
-                try:
-                    index(spike_ids, idx)
-                except ValueError:
-                    continue
-
-            tval = float(tosplit[0])
-            data.append((tval, idx))
-        the_file.close()
-        spikes = array(data)
+        spikes = numpy.loadtxt(file_name, ndmin=2)
+        if spike_ids is not None:
+            spikes = spikes[numpy.isin(spikes[:,1], spike_ids)]
         mspikes = spikes[spikes[:,1] < self.nummit] # I assume this is how you ordered things?
-        gspikes = spikes[spikes[:,1] >= self.nummit] - self.nummit # I assume this is how you ordered things?
+        gspikes = spikes[spikes[:,1] >= self.nummit] # I assume this is how you ordered things?
+        gspikes[:,1] -= self.nummit
 
         # Mitral and Granule Cell Spike times
         self.mspikes=mspikes
@@ -746,28 +656,33 @@ class Network(HasTraits):
         self.mpts0.parent.parent.scene.z_plus_view()
 
     #---------------------------------------------------------------------------
-    def play(self, fileroot='Network', mspikes=[], gspikes=[], save_png=False,
+    def play(self, fileroot='Network', mspikes=None, gspikes=None, save_png=None,
              sim_step=10, windowsize=10):
         view = mlab.view()
         f = mlab.gcf()
-        if not mspikes:
+        if mspikes is None:
             mspikes = self.mspikes
-        if not gspikes:
+        if gspikes is None:
             gspikes = self.gspikes
+        if save_png is None:
+            save_png = self.save_img
         img_counter = 0
-        ts = sort(array([t for t in set(gspikes[:,0])])) # can use either spike set
-        ts = ts[(ts > self.sim_start) * (ts < self.sim_end)]
+        ftitle = None
+        ts = numpy.unique(gspikes[:,0]) # can use either spike set
+        ts = ts[(ts > self.sim_start) & (ts < self.sim_end)]
         mqueue = []; gqueue = [];
         for t in ts[::sim_step]:
             self.t = t
             mlab.gcf().scene.disable_render=True
             timestamp = u"Time: %.1f" % (t)
-            print timestamp
+            print(timestamp)
             if save_png:
-                # Diplay time stamp
+                # Display time stamp
                 f.name = timestamp
-                try:ftitle.text = timestamp
-                except:ftitle = mlab.title(timestamp)
+                if ftitle is None:
+                    ftitle = mlab.title(timestamp)
+                else:
+                    ftitle.text = timestamp
 
             # Delete old spheres
             if len(mqueue) >= windowsize:
@@ -796,7 +711,7 @@ class Network(HasTraits):
             mlab.view(view [0], view [1], view [2], view [3])
             mlab.gcf().scene.disable_render=False
             if save_png:
-                f.scene.save_png('img/%s_%03d.png' % (fileroot, img_counter))
+                f.scene.save_png(str(IMG_DIR / ('%s_%03d.png' % (fileroot, img_counter))))
                 img_counter += 1
         return mqueue, gqueue
 
@@ -817,7 +732,7 @@ if __name__=='__main__':
     #              name='Subthalamic Nucleus')
     #stn.display()
     #gpi = Nucleus(ptsFile='data/gpi.pts',trisFile='data/gpi.tri',
-    #              name='Globus Pallidus Pars Externa')
+    #              name='Globus Pallidus Pars Interna')
     #gpi.display()
     #gpe = Nucleus(ptsFile='data/gpe.pts',trisFile='data/gpe.tri',
     #              name='Globus Pallidus Pars Externa')

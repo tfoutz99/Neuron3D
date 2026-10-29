@@ -6,3 +6,10 @@
 *.wpr
 i386
 *.DS_Store
+__pycache__/
+.venv/
+.pytest_cache/
+# nrnivmodl build output
+arm64/
+x86_64/
+*.mov

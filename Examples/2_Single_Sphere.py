@@ -1,6 +1,5 @@
-#!/usr/bin/env ipython -wthread
 # Run from neuron3d directory
-from enthought.mayavi.mlab import *
+from mayavi.mlab import *
 
 #===============================================================================
 # Create a mayavi figure
@@ -22,3 +21,5 @@ pts = points3d(x, y, z,
                name='sphere')
 #pts.glyph.glyph_source.glyph_source.theta_resolution = 50
 #pts.glyph.glyph_source.glyph_source.phi_resolution = 50
+
+show()
